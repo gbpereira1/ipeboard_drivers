@@ -1,0 +1,119 @@
+/dts-v1/;
+
+#include "vf500-colibri.dtsi"
+#include "vf-colibri-eval-v3.dtsi"
+#include "ipeboard.dtsi"
+
+/ {
+    model = "Toradex VF50 Ipe expansion board";
+    compatible = "toradex,vf500-ipeboard","fsl,vf500";
+
+    leds {
+        compatible = "gpio-leds";
+
+        led_d1: user_led_1 {
+            label = "led_d1";
+            gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+        };
+
+        led_d2: user_led_2 {
+            label = "led_d2";
+            gpios = <&gpio1 16 GPIO_ACTIVE_HIGH>;
+        };
+
+        led_d3: user_led_3 {
+            label = "led_d3";
+            gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;
+        };
+    };
+
+    gpio-keys {
+        compatible = "gpio-keys";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        s1_button {
+            label = "S1 button";
+            gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
+            linux,code = <256>; /* BTN_0 */
+            debounce-interval = <10>;
+        };
+
+        s2_dipswitch {
+            label = "S2 dip switch";
+            gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+            linux,code = <257>; /* BTN_1 */
+            debounce-interval = <10>;
+        };
+
+        s3_dipswitch {
+            label = "S3 dip switch";
+            gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+            linux,code = <258>; /* BTN_2 */
+            debounce-interval = <10>;
+        };
+    };
+
+    hdsp_513e: seven-segment {
+        compatible = "gpio-7-segment";
+        columns = <1>;
+        rows = <1>;
+
+        segment-gpios = <&mcp23s08 0 GPIO_ACTIVE_HIGH>, /* GP0 -> Segmento A */
+                        <&mcp23s08 1 GPIO_ACTIVE_HIGH>, /* GP1 -> Segmento B */
+                        <&mcp23s08 2 GPIO_ACTIVE_HIGH>, /* GP2 -> Segmento C */
+                        <&mcp23s08 3 GPIO_ACTIVE_HIGH>, /* GP3 -> Segmento D */
+                        <&mcp23s08 4 GPIO_ACTIVE_HIGH>, /* GP4 -> Segmento E */
+                        <&mcp23s08 5 GPIO_ACTIVE_HIGH>, /* GP5 -> Segmento F */
+                        <&mcp23s08 6 GPIO_ACTIVE_HIGH>, /* GP6 -> Segmento G */
+                        <&mcp23s08 7 GPIO_ACTIVE_HIGH>; /* GP7 -> DP (Ponto Decimal) */
+    };
+};
+
+&iomuxc {
+    /* Entramos no subnó padrão usado pela Toradex no Vybrid */
+    vf610-colibri {
+        /* Criamos um grupo totalmente NOVO e com nome exclusivo para evitar colisões */
+        pinctrl_dspi1_custom: dspi1customgrp {
+            fsl,pins = <
+                28  0x1182  /* PAD_87: SPI1_SCK */
+                27  0x1182  /* PAD_92: SPI1_SOUT */
+                26  0x1182  /* PAD_85: SPI1_SIN */
+                25  0x1182  /* PAD_84: SPI1_PCS0 */
+            >;
+        };
+    };
+};
+
+&dspi1 {
+    status = "okay";
+    pinctrl-names = "default";
+    
+    /* Vinculamos o barramento estritamente ao nosso novo grupo customizado */
+    pinctrl-0 = <&pinctrl_dspi1_custom>;
+
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    /* Desativa os nós herdados conflitantes */
+    can@0 {
+        status = "disabled";
+    };
+    
+    spidev@0 {
+        status = "disabled";
+    };
+
+    /* Seu dispositivo assume o Chip Select 0 */
+    mcp23s08: gpio@0 {
+        compatible = "microchip,mcp23s08";
+        reg = <0>;
+        spi-max-frequency = <5000000>;     
+        
+        gpio-controller;
+        #gpio-cells = <2>;
+        
+        microchip,spi-present-mask = <0x01>; 
+        status = "okay";
+    };
+};
